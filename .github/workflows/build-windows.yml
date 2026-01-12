@@ -1,0 +1,54 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # 手動実行も可能
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        lfs: true  # 大きなモデルファイル用
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install ultralytics opencv-python numpy Pillow
+    
+    - name: Build EXE with PyInstaller
+      run: |
+        pyinstaller --clean --noconfirm `
+          --name YakinikuDetector `
+          --add-data "models/best.pt;models" `
+          --add-data "config.py;." `
+          --add-data "detect_yakiniku.py;." `
+          --hidden-import ultralytics `
+          --hidden-import ultralytics.engine `
+          --hidden-import ultralytics.nn `
+          --hidden-import cv2 `
+          --hidden-import numpy `
+          --hidden-import PIL `
+          --hidden-import torch `
+          --console `
+          run_camera.py
+    
+    - name: Upload EXE artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: YakinikuDetector-Windows
+        path: dist/YakinikuDetector/
+        retention-days: 30
