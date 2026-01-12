@@ -26,21 +26,50 @@ def put_japanese_text(img, text, position, font_size=24, color=(255, 255, 255)):
         font_size: フォントサイズ
         color: RGB色
     """
+    import platform
+    
     # OpenCV画像をPIL画像に変換
     img_pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     draw = ImageDraw.Draw(img_pil)
     
-    # システムフォントを使用（日本語対応）
-    try:
-        # Macの場合
-        font = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc", font_size)
-    except:
+    # OS別のフォントパスを試行
+    font = None
+    font_paths = []
+    
+    system = platform.system()
+    if system == "Windows":
+        # Windows用フォント
+        font_paths = [
+            "C:/Windows/Fonts/meiryo.ttc",      # メイリオ
+            "C:/Windows/Fonts/msgothic.ttc",    # MSゴシック
+            "C:/Windows/Fonts/YuGothM.ttc",     # 游ゴシック
+            "C:/Windows/Fonts/msmincho.ttc",    # MS明朝
+        ]
+    elif system == "Darwin":
+        # macOS用フォント
+        font_paths = [
+            "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+        ]
+    else:
+        # Linux用フォント
+        font_paths = [
+            "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        ]
+    
+    # フォントを順番に試行
+    for font_path in font_paths:
         try:
-            # 代替フォント
-            font = ImageFont.truetype("/System/Library/Fonts/Hiragino Sans GB.ttc", font_size)
+            font = ImageFont.truetype(font_path, font_size)
+            break
         except:
-            # フォールバック
-            font = ImageFont.load_default()
+            continue
+    
+    # フォントが見つからない場合はデフォルトを使用
+    if font is None:
+        font = ImageFont.load_default()
     
     # テキストを描画（RGBカラー）
     draw.text(position, text, font=font, fill=color)
@@ -189,12 +218,37 @@ class YakinikuDetector:
             save_video: 動画を保存するかどうか
             output_path: 保存する動画のパス
         """
+        import platform
         camera_id = camera_id if camera_id is not None else config.CAMERA_ID
         
-        # カメラをオープン
-        cap = cv2.VideoCapture(camera_id)
+        # カメラをオープン（Windows対応）
+        cap = None
+        system = platform.system()
+        
+        if system == "Windows":
+            # Windows: DirectShowバックエンドを試行
+            print("Windows detected, trying DirectShow backend...")
+            cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
+            if not cap.isOpened():
+                print("DirectShow failed, trying default backend...")
+                cap = cv2.VideoCapture(camera_id)
+        else:
+            # macOS/Linux: デフォルトバックエンド
+            cap = cv2.VideoCapture(camera_id)
+        
         if not cap.isOpened():
-            raise RuntimeError(f"Failed to open camera {camera_id}")
+            # 他のカメラIDを試行
+            print(f"Failed to open camera {camera_id}, trying other cameras...")
+            for try_id in range(3):
+                if try_id != camera_id:
+                    cap = cv2.VideoCapture(try_id, cv2.CAP_DSHOW) if system == "Windows" else cv2.VideoCapture(try_id)
+                    if cap.isOpened():
+                        print(f"Found camera at ID {try_id}")
+                        camera_id = try_id
+                        break
+        
+        if not cap.isOpened():
+            raise RuntimeError(f"Failed to open camera. Please check if a camera is connected.")
         
         # カメラの情報を取得
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
