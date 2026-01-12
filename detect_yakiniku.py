@@ -256,7 +256,19 @@ class YakinikuDetector:
         fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
         
         print(f"Camera opened: {width}x{height} @ {fps}fps")
+        
+        # カメラのウォームアップ（最初の数フレームを読み捨て）
+        print("Warming up camera...")
+        for _ in range(10):
+            cap.read()
+        print("Camera ready!")
+        
         print("Press 'q' to quit, 's' to save screenshot")
+        
+        # フルスクリーンウィンドウの設定
+        window_name = "Yakiniku Detector"
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         
         # 動画ライターの設定
         writer = None
@@ -311,7 +323,7 @@ class YakinikuDetector:
                                                     font_size=20, color=(255, 255, 255))
                 
                 # 画面に表示
-                cv2.imshow("Yakiniku Detector", annotated_frame)
+                cv2.imshow(window_name, annotated_frame)
                 
                 # 動画に書き込み
                 if writer:
