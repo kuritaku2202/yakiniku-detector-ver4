@@ -250,7 +250,12 @@ class YakinikuDetector:
         if not cap.isOpened():
             raise RuntimeError(f"Failed to open camera. Please check if a camera is connected.")
         
-        # カメラの情報を取得
+        # カメラを最高解像度に設定（4Kを要求、カメラがサポートする最大値が使用される）
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)   # 4K width
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160)  # 4K height
+        cap.set(cv2.CAP_PROP_FPS, 30)             # 30fps
+        
+        # 実際に設定された解像度を取得
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
