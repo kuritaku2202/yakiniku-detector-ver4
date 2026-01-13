@@ -209,7 +209,7 @@ class YakinikuDetector:
         
         return annotated_frame, detections
     
-    def run_camera(self, camera_id=None, save_video=False, output_path="output.mp4"):
+    def run_camera(self, camera_id=None, save_video=False, output_path="output.mp4", backend=None):
         """
         カメラからリアルタイムで検出を実行
         
@@ -217,38 +217,35 @@ class YakinikuDetector:
             camera_id: カメラID（Noneの場合はconfig.CAMERA_IDを使用）
             save_video: 動画を保存するかどうか
             output_path: 保存する動画のパス
+            backend: OpenCVカメラバックエンド（Noneの場合は自動選択）
         """
         import platform
         camera_id = camera_id if camera_id is not None else config.CAMERA_ID
         
-        # カメラをオープン（Windows対応）
+        # カメラをオープン
         cap = None
         system = platform.system()
         
-        if system == "Windows":
+        if backend is not None:
+            # バックエンドが指定されている場合はそれを使用
+            print(f"指定されたバックエンドでカメラ {camera_id} を開いています...")
+            cap = cv2.VideoCapture(camera_id, backend)
+        elif system == "Windows":
             # Windows: DirectShowバックエンドを試行
             print("Windows detected, trying DirectShow backend...")
             cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
             if not cap.isOpened():
-                print("DirectShow failed, trying default backend...")
+                print("DirectShow failed, trying Media Foundation...")
+                cap = cv2.VideoCapture(camera_id, cv2.CAP_MSMF)
+            if not cap.isOpened():
+                print("Media Foundation failed, trying default backend...")
                 cap = cv2.VideoCapture(camera_id)
         else:
             # macOS/Linux: デフォルトバックエンド
             cap = cv2.VideoCapture(camera_id)
         
         if not cap.isOpened():
-            # 他のカメラIDを試行
-            print(f"Failed to open camera {camera_id}, trying other cameras...")
-            for try_id in range(3):
-                if try_id != camera_id:
-                    cap = cv2.VideoCapture(try_id, cv2.CAP_DSHOW) if system == "Windows" else cv2.VideoCapture(try_id)
-                    if cap.isOpened():
-                        print(f"Found camera at ID {try_id}")
-                        camera_id = try_id
-                        break
-        
-        if not cap.isOpened():
-            raise RuntimeError(f"Failed to open camera. Please check if a camera is connected.")
+            raise RuntimeError(f"Failed to open camera {camera_id}. Please check if the camera is connected.")
         
         # カメラを最高解像度に設定（4Kを要求、カメラがサポートする最大値が使用される）
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)   # 4K width
